@@ -1,10 +1,10 @@
 from telebot import TeleBot
 from telebot import custom_filters
-from telebot import types
 from telebot.types import Message
 
 import config
 from states import States
+from requests_from_back import get_key, send_username_and_id
 
 bot = TeleBot(config.token)
 min_name_length = 4
@@ -19,6 +19,16 @@ def greeting(message: Message):
     bot.set_state(message.from_user.id, States.enter_name)
 
 
+@bot.message_handler(commands=['key'])
+def get_hash(message: Message):
+    key = get_key(message.from_user.id)
+
+    if not key:
+        bot.send_message(message.chat.id, "There is no such user.")
+    else:
+        bot.send_message(message.chat.id, f"Here is your key: {key}")
+
+
 @bot.message_handler(state=States.enter_name)
 def enter_name(message: Message):
     name = message.text
@@ -29,8 +39,15 @@ def enter_name(message: Message):
                                           "How again we can call you?")
         bot.set_state(message.from_user.id, States.enter_name)
     else:
-        bot.send_message(message.chat.id, "Oh! Such a good name!\n"
-                                          f"Nice to meet you {name}!")
+        status = send_username_and_id(name, message.from_user.id)
+
+        if status:
+            bot.send_message(message.chat.id, "Oh! Such a good name!\n"
+                                              f"Nice to meet you {name}!")
+        else:
+            bot.send_message(message.chat.id, "Sorry, it seems that that name is already taken.\n"
+                                              "Please choose another one.")
+            bot.set_state(message.from_user.id, States.enter_name)
 
 
 def main():
